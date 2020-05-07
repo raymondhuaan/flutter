@@ -4,6 +4,8 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
+
 import '../application_package.dart';
 import '../base/common.dart';
 import '../base/utils.dart';
@@ -17,14 +19,20 @@ import 'build.dart';
 /// or simulator. Can only be run on a macOS host. For producing deployment
 /// .ipas, see https://flutter.dev/docs/deployment/ios.
 class BuildIOSCommand extends BuildSubCommand {
-  BuildIOSCommand() {
+  BuildIOSCommand({ @required bool verboseHelp }) {
     addTreeShakeIconsFlag();
+    addSplitDebugInfoOption();
     addBuildModeFlags(defaultToRelease: false);
     usesTargetOption();
     usesFlavorOption();
     usesPubOption();
     usesBuildNumberOption();
     usesBuildNameOption();
+    addDartObfuscationOption();
+    usesDartDefineOption();
+    usesExtraFrontendOptions();
+    addEnableExperimentation(hide: !verboseHelp);
+    addBuildPerformanceFile(hide: !verboseHelp);
     argParser
       ..addFlag('simulator',
         help: 'Build for the iOS simulator instead of the device.',
@@ -85,7 +93,7 @@ class BuildIOSCommand extends BuildSubCommand {
     );
 
     if (!result.success) {
-      await diagnoseXcodeBuildFailure(result);
+      await diagnoseXcodeBuildFailure(result, globals.flutterUsage, globals.logger);
       throwToolExit('Encountered error while building for $logTarget.');
     }
 

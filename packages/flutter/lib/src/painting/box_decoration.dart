@@ -45,7 +45,7 @@ import 'image_provider.dart';
 ///   decoration: BoxDecoration(
 ///     color: const Color(0xff7c94b6),
 ///     image: const DecorationImage(
-///       image: NetworkImage('https:///flutter.github.io/assets-for-api-docs/assets/widgets/owl-2.jpg'),
+///       image: NetworkImage('https://flutter.github.io/assets-for-api-docs/assets/widgets/owl-2.jpg'),
 ///       fit: BoxFit.cover,
 ///     ),
 ///     border: Border.all(
@@ -97,7 +97,7 @@ class BoxDecoration extends Decoration {
   }) : assert(shape != null),
        assert(
          backgroundBlendMode == null || color != null || gradient != null,
-         'backgroundBlendMode applies to BoxDecoration\'s background color or '
+         "backgroundBlendMode applies to BoxDecoration's background color or "
          'gradient, but no color or gradient was provided.'
        );
 

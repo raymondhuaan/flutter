@@ -4,8 +4,8 @@
 
 import 'package:file/memory.dart';
 import 'package:flutter_tools/src/base/file_system.dart';
+import 'package:flutter_tools/src/base/platform.dart';
 import 'package:mockito/mockito.dart';
-import 'package:platform/platform.dart';
 
 import '../../src/common.dart';
 
@@ -105,8 +105,8 @@ void main() {
         fileSystem: fileSystem,
         platform: FakePlatform(operatingSystem: 'windows'),
       );
-      expect(fsUtils.escapePath('C:\\foo\\bar\\cool.dart'), 'C:\\\\foo\\\\bar\\\\cool.dart');
-      expect(fsUtils.escapePath('foo\\bar\\cool.dart'), 'foo\\\\bar\\\\cool.dart');
+      expect(fsUtils.escapePath(r'C:\foo\bar\cool.dart'), r'C:\\foo\\bar\\cool.dart');
+      expect(fsUtils.escapePath(r'foo\bar\cool.dart'), r'foo\\bar\\cool.dart');
       expect(fsUtils.escapePath('C:/foo/bar/cool.dart'), 'C:/foo/bar/cool.dart');
     });
 
@@ -118,7 +118,7 @@ void main() {
       );
       expect(fsUtils.escapePath('/foo/bar/cool.dart'), '/foo/bar/cool.dart');
       expect(fsUtils.escapePath('foo/bar/cool.dart'), 'foo/bar/cool.dart');
-      expect(fsUtils.escapePath('foo\\cool.dart'), 'foo\\cool.dart');
+      expect(fsUtils.escapePath(r'foo\cool.dart'), r'foo\cool.dart');
     });
   });
 }

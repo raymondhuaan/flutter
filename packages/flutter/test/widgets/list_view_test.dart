@@ -27,7 +27,7 @@ class Alive extends StatefulWidget {
   AliveState createState() => AliveState();
 
   @override
-  String toString({ DiagnosticLevel minLevel = DiagnosticLevel.debug }) => '$index $alive';
+  String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) => '$index $alive';
 }
 
 class AliveState extends State<Alive> with AutomaticKeepAliveClientMixin {
@@ -212,7 +212,7 @@ void main() {
 
     await tester.pumpWidget(_StatefulListView((int i) => i % 3 == 0));
     await checkAndScroll('0:true');
-  }, skip: isBrowser);
+  });
 
   testWidgets('ListView can build out of underflow', (WidgetTester tester) async {
     await tester.pumpWidget(

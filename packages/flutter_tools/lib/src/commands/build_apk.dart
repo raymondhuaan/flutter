@@ -5,7 +5,6 @@
 import 'dart:async';
 
 import '../android/android_builder.dart';
-import '../android/android_sdk.dart';
 import '../android/gradle_utils.dart';
 import '../base/terminal.dart';
 import '../build_info.dart';
@@ -27,6 +26,12 @@ class BuildApkCommand extends BuildSubCommand {
     usesBuildNameOption();
     addShrinkingFlag();
     addSplitDebugInfoOption();
+    addDartObfuscationOption();
+    usesDartDefineOption();
+    usesExtraFrontendOptions();
+    addBundleSkSLPathOption(hide: !verboseHelp);
+    addEnableExperimentation(hide: !verboseHelp);
+    addBuildPerformanceFile(hide: !verboseHelp);
     argParser
       ..addFlag('split-per-abi',
         negatable: false,
@@ -52,8 +57,8 @@ class BuildApkCommand extends BuildSubCommand {
 
   @override
   final String description = 'Build an Android APK file from your app.\n\n'
-    'This command can build debug and release versions of your application. \'debug\' builds support '
-    'debugging and a quick development cycle. \'release\' builds don\'t support debugging and are '
+    "This command can build debug and release versions of your application. 'debug' builds support "
+    "debugging and a quick development cycle. 'release' builds don't support debugging and are "
     'suitable for deploying to app stores.';
 
   @override
@@ -80,7 +85,7 @@ class BuildApkCommand extends BuildSubCommand {
 
   @override
   Future<FlutterCommandResult> runCommand() async {
-    if (androidSdk == null) {
+    if (globals.androidSdk == null) {
       exitWithNoSdkMessage();
     }
     final BuildInfo buildInfo = getBuildInfo();
@@ -97,7 +102,7 @@ class BuildApkCommand extends BuildSubCommand {
       globals.printStatus('You are building a fat APK that includes binaries for '
                   '$targetPlatforms.', emphasis: true, color: TerminalColor.green);
       globals.printStatus('If you are deploying the app to the Play Store, '
-                  'it\'s recommended to use app bundles or split the APK to reduce the APK size.', emphasis: true);
+                  "it's recommended to use app bundles or split the APK to reduce the APK size.", emphasis: true);
       globals.printStatus('To generate an app bundle, run:', emphasis: true, indent: 4);
       globals.printStatus('flutter build appbundle '
                   '--target-platform ${targetPlatforms.replaceAll(' ', '')}',indent: 8);

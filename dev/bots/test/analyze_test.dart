@@ -49,7 +49,7 @@ void main() {
         'test/analyze-test-input/root/packages/foo/deprecation.dart:41: Deprecation notice does not match required pattern.\n'
         'test/analyze-test-input/root/packages/foo/deprecation.dart:48: End of deprecation notice does not match required pattern.\n'
         'test/analyze-test-input/root/packages/foo/deprecation.dart:51: Unexpected deprecation notice indent.\n'
-        .replaceAll('/', Platform.isWindows ? '\\' : '/')
+        .replaceAll('/', Platform.isWindows ? r'\' : '/')
       )
       +
       'See: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\n'
@@ -65,7 +65,7 @@ void main() {
       (
         'The following 1 file does not have the right license header:\n'
         'test/analyze-test-input/root/packages/foo/foo.dart\n'
-        .replaceAll('/', Platform.isWindows ? '\\' : '/')
+        .replaceAll('/', Platform.isWindows ? r'\' : '/')
       )
       +
       'The expected license header is:\n'
@@ -85,7 +85,7 @@ void main() {
       (
         'test/analyze-test-input/root/packages/foo/spaces.txt:5: trailing U+0020 space character\n'
         'test/analyze-test-input/root/packages/foo/spaces.txt:9: trailing blank line\n'
-        .replaceAll('/', Platform.isWindows ? '\\' : '/')
+        .replaceAll('/', Platform.isWindows ? r'\' : '/')
       )
       +
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
@@ -95,7 +95,7 @@ void main() {
   test('analyze.dart - verifyNoBinaries - positive', () async {
     final String result = await capture(() => verifyNoBinaries(
       testRootPath,
-      grandfatheredBinaries: <Hash256>{Hash256(0x39A050CD69434936, 0, 0, 0)},
+      grandfatheredBinaries: <Hash256>{const Hash256(0x39A050CD69434936, 0, 0, 0)},
     ), exitCode: Platform.isWindows ? 0 : 1);
     if (!Platform.isWindows) {
       // The output starts with the call to git ls-files, the details of which
@@ -117,8 +117,8 @@ void main() {
     await capture(() => verifyNoBinaries(
       testRootPath,
       grandfatheredBinaries: <Hash256>{
-        Hash256(0xA8100AE6AA1940D0, 0xB663BB31CD466142, 0xEBBDBD5187131B92, 0xD93818987832EB89), // sha256("\xff")
-        Hash256(0x155644D3F13D98BF, 0, 0, 0),
+        const Hash256(0xA8100AE6AA1940D0, 0xB663BB31CD466142, 0xEBBDBD5187131B92, 0xD93818987832EB89), // sha256("\xff")
+        const Hash256(0x155644D3F13D98BF, 0, 0, 0),
       },
     ), exitCode: 0);
   });

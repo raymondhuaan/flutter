@@ -4,9 +4,9 @@
 
 import 'package:file/file.dart';
 import 'package:meta/meta.dart';
-import 'package:platform/platform.dart';
 
 import 'common.dart' show throwToolExit;
+import 'platform.dart';
 
 export 'package:file/file.dart';
 export 'package:file/local.dart';
@@ -114,7 +114,7 @@ class FileSystemUtils {
   ///
   /// On Windows it replaces all '\' with '\\'. On other platforms, it returns the
   /// path unchanged.
-  String escapePath(String path) => _platform.isWindows ? path.replaceAll('\\', '\\\\') : path;
+  String escapePath(String path) => _platform.isWindows ? path.replaceAll(r'\', r'\\') : path;
 
   /// Returns true if the file system [entity] has not been modified since the
   /// latest modification to [referenceFile].

@@ -162,7 +162,7 @@ void main() {
     expect(error.toStringDeep(), equalsIgnoringHashCodes(
       'FlutterError\n'
       '   Failed to update the list of CustomPainterSemantics:\n'
-      '   - duplicate key [<\'0\'>] found at position 1\n'
+      "   - duplicate key [<'0'>] found at position 1\n"
     ));
   });
 
@@ -195,7 +195,7 @@ void main() {
     expect(target.currentContext.size, const Size(800.0, 600.0));
 
     await tester.pumpWidget(Center(
-      child: CustomPaint(key: target, child: Container(height: 0.0, width: 0.0)),
+      child: CustomPaint(key: target, child: const SizedBox(height: 0.0, width: 0.0)),
     ));
     expect(target.currentContext.size, Size.zero);
 
@@ -222,5 +222,10 @@ void main() {
     renderCustom = target.currentContext.findRenderObject() as RenderCustomPaint;
     expect(renderCustom.isComplex, false);
     expect(renderCustom.willChange, true);
+  });
+
+  test('Raster cache hints cannot be set with null painters', () {
+    expect(() => CustomPaint(isComplex: true), throwsAssertionError);
+    expect(() => CustomPaint(willChange: true), throwsAssertionError);
   });
 }

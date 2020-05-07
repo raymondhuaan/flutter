@@ -4,7 +4,6 @@
 
 import 'dart:async';
 
-import '../aot.dart';
 import '../bundle.dart';
 import '../commands/build_linux.dart';
 import '../commands/build_macos.dart';
@@ -22,23 +21,21 @@ import 'build_ios_framework.dart';
 import 'build_web.dart';
 
 class BuildCommand extends FlutterCommand {
-  BuildCommand({bool verboseHelp = false}) {
+  BuildCommand({ bool verboseHelp = false }) {
     addSubcommand(BuildAarCommand());
     addSubcommand(BuildApkCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildAppBundleCommand(verboseHelp: verboseHelp));
-    addSubcommand(BuildAotCommand(verboseHelp: verboseHelp));
-    addSubcommand(BuildIOSCommand());
+    addSubcommand(BuildAotCommand());
+    addSubcommand(BuildIOSCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildIOSFrameworkCommand(
-      aotBuilder: AotBuilder(),
+      buildSystem: globals.buildSystem,
       bundleBuilder: BundleBuilder(),
-      cache: globals.cache,
-      platform: globals.platform,
     ));
     addSubcommand(BuildBundleCommand(verboseHelp: verboseHelp));
-    addSubcommand(BuildWebCommand());
-    addSubcommand(BuildMacosCommand());
-    addSubcommand(BuildLinuxCommand());
-    addSubcommand(BuildWindowsCommand());
+    addSubcommand(BuildWebCommand(verboseHelp: verboseHelp));
+    addSubcommand(BuildMacosCommand(verboseHelp: verboseHelp));
+    addSubcommand(BuildLinuxCommand(verboseHelp: verboseHelp));
+    addSubcommand(BuildWindowsCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildFuchsiaCommand(verboseHelp: verboseHelp));
   }
 

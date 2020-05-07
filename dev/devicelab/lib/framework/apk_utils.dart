@@ -193,7 +193,7 @@ Future<void> checkApkContainsClasses(File apk, List<String> classes) async {
   final ApkExtractor extractor = ApkExtractor(apk);
   for (final String className in classes) {
     if (!(await extractor.containsClass(className))) {
-      throw Exception('APK doesn\'t contain class `$className`.');
+      throw Exception("APK doesn't contain class `$className`.");
     }
   }
   extractor.dispose();
@@ -299,6 +299,20 @@ android {
     await buildScript.writeAsString((await buildScript.readAsString()).replaceAll('buildTypes', 'builTypes'));
   }
 
+  Future<void> introducePubspecError() async {
+    final File pubspec = File(
+      path.join(parent.path, 'hello', 'pubspec.yaml')
+    );
+    final String contents = pubspec.readAsStringSync();
+    final String newContents = contents.replaceFirst('# The following section is specific to Flutter.\nflutter:\n', '''
+flutter:
+  assets:
+    - lib/gallery/example_code.dart
+
+''');
+    pubspec.writeAsStringSync(newContents);
+  }
+
   Future<void> runGradleTask(String task, {List<String> options}) async {
     return _runGradleTask(workingDirectory: androidPath, task: task, options: options);
   }
@@ -332,10 +346,10 @@ class FlutterPluginProject {
   String get rootPath => path.join(parent.path, name);
   String get examplePath => path.join(rootPath, 'example');
   String get exampleAndroidPath => path.join(examplePath, 'android');
-  String get debugApkPath => path.join(examplePath, 'build', 'app', 'outputs', 'apk', 'debug', 'app-debug.apk');
-  String get releaseApkPath => path.join(examplePath, 'build', 'app', 'outputs', 'apk', 'release', 'app-release.apk');
-  String get releaseArmApkPath => path.join(examplePath, 'build', 'app', 'outputs', 'apk', 'release', 'app-armeabi-v7a-release.apk');
-  String get releaseArm64ApkPath => path.join(examplePath, 'build', 'app', 'outputs', 'apk', 'release', 'app-arm64-v8a-release.apk');
+  String get debugApkPath => path.join(examplePath, 'build', 'app', 'outputs', 'flutter-apk', 'app-debug.apk');
+  String get releaseApkPath => path.join(examplePath, 'build', 'app', 'outputs', 'flutter-apk', 'app-release.apk');
+  String get releaseArmApkPath => path.join(examplePath, 'build', 'app', 'outputs', 'flutter-apk','app-armeabi-v7a-release.apk');
+  String get releaseArm64ApkPath => path.join(examplePath, 'build', 'app', 'outputs', 'flutter-apk', 'app-arm64-v8a-release.apk');
   String get releaseBundlePath => path.join(examplePath, 'build', 'app', 'outputs', 'bundle', 'release', 'app.aab');
 
   Future<void> runGradleTask(String task, {List<String> options}) async {

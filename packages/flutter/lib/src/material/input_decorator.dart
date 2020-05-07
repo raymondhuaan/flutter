@@ -13,6 +13,7 @@ import 'colors.dart';
 import 'constants.dart';
 import 'input_border.dart';
 import 'theme.dart';
+import 'theme_data.dart';
 
 const Duration _kTransitionDuration = Duration(milliseconds: 200);
 const Curve _kTransitionCurve = Curves.fastOutSlowIn;
@@ -39,6 +40,7 @@ class _InputBorderGap extends ChangeNotifier {
   }
 
   @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes, this class is not used in collection
   bool operator ==(Object other) {
     if (identical(this, other))
       return true;
@@ -50,6 +52,7 @@ class _InputBorderGap extends ChangeNotifier {
   }
 
   @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes, this class is not used in collection
   int get hashCode => hashValues(start, extent);
 }
 
@@ -488,6 +491,7 @@ enum _DecorationSlot {
 }
 
 // An analog of InputDecoration for the _Decorator widget.
+@immutable
 class _Decoration {
   const _Decoration({
     @required this.contentPadding,
@@ -496,6 +500,9 @@ class _Decoration {
     @required this.floatingLabelProgress,
     this.border,
     this.borderGap,
+    this.alignLabelWithHint,
+    this.isDense,
+    this.visualDensity,
     this.icon,
     this.input,
     this.label,
@@ -507,12 +514,12 @@ class _Decoration {
     this.helperError,
     this.counter,
     this.container,
-    this.alignLabelWithHint,
-    this.isDense,
+    this.fixTextFieldOutlineLabel = false,
   }) : assert(contentPadding != null),
        assert(isCollapsed != null),
        assert(floatingLabelHeight != null),
-       assert(floatingLabelProgress != null);
+       assert(floatingLabelProgress != null),
+       assert(fixTextFieldOutlineLabel != null);
 
   final EdgeInsetsGeometry contentPadding;
   final bool isCollapsed;
@@ -522,6 +529,7 @@ class _Decoration {
   final _InputBorderGap borderGap;
   final bool alignLabelWithHint;
   final bool isDense;
+  final VisualDensity visualDensity;
   final Widget icon;
   final Widget input;
   final Widget label;
@@ -533,6 +541,7 @@ class _Decoration {
   final Widget helperError;
   final Widget counter;
   final Widget container;
+  final bool fixTextFieldOutlineLabel;
 
   @override
   bool operator ==(Object other) {
@@ -542,10 +551,14 @@ class _Decoration {
       return false;
     return other is _Decoration
         && other.contentPadding == contentPadding
+        && other.isCollapsed == isCollapsed
         && other.floatingLabelHeight == floatingLabelHeight
         && other.floatingLabelProgress == floatingLabelProgress
         && other.border == border
         && other.borderGap == borderGap
+        && other.alignLabelWithHint == alignLabelWithHint
+        && other.isDense == isDense
+        && other.visualDensity == visualDensity
         && other.icon == icon
         && other.input == input
         && other.label == label
@@ -557,7 +570,7 @@ class _Decoration {
         && other.helperError == helperError
         && other.counter == counter
         && other.container == container
-        && other.alignLabelWithHint == alignLabelWithHint;
+        && other.fixTextFieldOutlineLabel == fixTextFieldOutlineLabel;
   }
 
   @override
@@ -568,6 +581,9 @@ class _Decoration {
       floatingLabelProgress,
       border,
       borderGap,
+      alignLabelWithHint,
+      isDense,
+      visualDensity,
       icon,
       input,
       label,
@@ -579,7 +595,7 @@ class _Decoration {
       helperError,
       counter,
       container,
-      alignLabelWithHint,
+      fixTextFieldOutlineLabel,
     );
   }
 }
@@ -1045,6 +1061,7 @@ class _RenderDecoration extends RenderBox {
     );
 
     // Calculate the height of the input text container.
+    final Offset densityOffset = decoration.visualDensity.baseSizeAdjustment;
     final double prefixIconHeight = prefixIcon == null ? 0 : prefixIcon.size.height;
     final double suffixIconHeight = suffixIcon == null ? 0 : suffixIcon.size.height;
     final double fixIconHeight = math.max(prefixIconHeight, suffixIconHeight);
@@ -1055,12 +1072,13 @@ class _RenderDecoration extends RenderBox {
       + fixAboveInput
       + inputHeight
       + fixBelowInput
-      + contentPadding.bottom,
+      + contentPadding.bottom
+      + densityOffset.dy,
     );
-    final double minContainerHeight = decoration.isDense || expands
+    final double minContainerHeight = decoration.isDense || decoration.isCollapsed || expands
       ? 0.0
-      : kMinInteractiveDimension;
-    final double maxContainerHeight = boxConstraints.maxHeight - bottomHeight;
+      : kMinInteractiveDimension + densityOffset.dy;
+    final double maxContainerHeight = boxConstraints.maxHeight - bottomHeight + densityOffset.dy;
     final double containerHeight = expands
       ? maxContainerHeight
       : math.min(math.max(contentHeight, minContainerHeight), maxContainerHeight);
@@ -1096,7 +1114,7 @@ class _RenderDecoration extends RenderBox {
     final double alignableHeight = fixAboveInput + inputHeight + fixBelowInput;
     final double maxVerticalOffset = maxContentHeight - alignableHeight;
     final double textAlignVerticalOffset = maxVerticalOffset * textAlignVerticalFactor;
-    final double inputBaseline = topInputBaseline + textAlignVerticalOffset;
+    final double inputBaseline = topInputBaseline + textAlignVerticalOffset + densityOffset.dy / 2.0;
 
     // The three main alignments for the baseline when an outline is present are
     //
@@ -1225,11 +1243,16 @@ class _RenderDecoration extends RenderBox {
     double subtextHeight = _lineHeight(width, <RenderBox>[helperError, counter]);
     if (subtextHeight > 0.0)
       subtextHeight += subtextGap;
-    return contentPadding.top
+    final Offset densityOffset = decoration.visualDensity.baseSizeAdjustment;
+    final double containerHeight = contentPadding.top
       + (label == null ? 0.0 : decoration.floatingLabelHeight)
       + _lineHeight(width, <RenderBox>[prefix, input, suffix])
       + subtextHeight
       + contentPadding.bottom;
+    final double minContainerHeight = decoration.isDense || expands
+      ? 0.0
+      : kMinInteractiveDimension + densityOffset.dy;
+    return math.max(containerHeight, minContainerHeight);
   }
 
   @override
@@ -1247,6 +1270,7 @@ class _RenderDecoration extends RenderBox {
 
   @override
   void performLayout() {
+    final BoxConstraints constraints = this.constraints;
     _labelTransform = null;
     final _RenderDecorationLayout layout = _layout(constraints);
 
@@ -1419,12 +1443,18 @@ class _RenderDecoration extends RenderBox {
     if (label != null) {
       final Offset labelOffset = _boxParentData(label).offset;
       final double labelHeight = label.size.height;
+      final double borderWeight = decoration.border.borderSide.width;
       final double t = decoration.floatingLabelProgress;
       // The center of the outline border label ends up a little below the
       // center of the top border line.
       final bool isOutlineBorder = decoration.border != null && decoration.border.isOutline;
-      final double floatingY = isOutlineBorder ? -labelHeight * 0.25 : contentPadding.top;
-      final double scale = lerpDouble(1.0, 0.75, t);
+      // Temporary opt-in fix for https://github.com/flutter/flutter/issues/54028
+      // Center the scaled label relative to the border.
+      const double finalLabelScale = 0.75;
+      final double floatingY = decoration.fixTextFieldOutlineLabel
+        ? isOutlineBorder ? (-labelHeight * finalLabelScale) / 2.0 + borderWeight / 2.0 : contentPadding.top
+        : isOutlineBorder ? -labelHeight * 0.25 : contentPadding.top;
+      final double scale = lerpDouble(1.0, finalLabelScale, t);
       double dx;
       switch (textDirection) {
         case TextDirection.rtl:
@@ -1459,7 +1489,7 @@ class _RenderDecoration extends RenderBox {
   bool hitTestChildren(BoxHitTestResult result, { @required Offset position }) {
     assert(position != null);
     for (final RenderBox child in _children) {
-      // TODO(hansmuller): label must be handled specially since we've transformed it
+      // The label must be handled specially since we've transformed it.
       final Offset offset = _boxParentData(child).offset;
       final bool isHit = result.addWithPaintOffset(
         offset: offset,
@@ -1885,8 +1915,10 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
     super.initState();
 
     final bool labelIsInitiallyFloating = widget.decoration.floatingLabelBehavior == FloatingLabelBehavior.always
-        // ignore: deprecated_member_use_from_same_package
-        || (widget.decoration.hasFloatingPlaceholder && widget._labelShouldWithdraw);
+        || (widget.decoration.floatingLabelBehavior != FloatingLabelBehavior.never &&
+            // ignore: deprecated_member_use_from_same_package
+            widget.decoration.hasFloatingPlaceholder &&
+            widget._labelShouldWithdraw);
 
     _floatingLabelController = AnimationController(
       duration: _kTransitionDuration,
@@ -1923,7 +1955,7 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
   InputDecoration _effectiveDecoration;
   InputDecoration get decoration {
     _effectiveDecoration ??= widget.decoration.applyDefaults(
-      Theme.of(context).inputDecorationTheme
+      Theme.of(context).inputDecorationTheme,
     );
     return _effectiveDecoration;
   }
@@ -2059,9 +2091,17 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
       ? decoration.errorStyle?.color ?? themeData.errorColor
       : _getActiveColor(themeData);
     final TextStyle style = themeData.textTheme.subtitle1.merge(widget.baseStyle);
-    return style
-      .copyWith(color: decoration.enabled ? color : themeData.disabledColor)
-      .merge(decoration.labelStyle);
+    // Temporary opt-in fix for https://github.com/flutter/flutter/issues/54028
+    // Setting TextStyle.height to 1 ensures that the label's height will equal
+    // its font size.
+    return themeData.fixTextFieldOutlineLabel
+      ? style
+        .copyWith(height: 1, color: decoration.enabled ? color : themeData.disabledColor)
+        .merge(decoration.labelStyle)
+      : style
+        .copyWith(color: decoration.enabled ? color : themeData.disabledColor)
+        .merge(decoration.labelStyle);
+
   }
 
   TextStyle _getHelperStyle(ThemeData themeData) {
@@ -2140,7 +2180,12 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
       isHovering: isHovering,
     );
 
-    final TextStyle inlineLabelStyle = inlineStyle.merge(decoration.labelStyle);
+    // Temporary opt-in fix for https://github.com/flutter/flutter/issues/54028
+    // Setting TextStyle.height to 1 ensures that the label's height will equal
+    // its font size.
+    final TextStyle inlineLabelStyle = themeData.fixTextFieldOutlineLabel
+      ? inlineStyle.merge(decoration.labelStyle).copyWith(height: 1)
+      : inlineStyle.merge(decoration.labelStyle);
     final Widget label = decoration.labelText == null ? null : _Shaker(
       animation: _shakingLabelController.view,
       child: AnimatedOpacity(
@@ -2200,9 +2245,11 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
         widthFactor: 1.0,
         heightFactor: 1.0,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minWidth: kMinInteractiveDimension,
-            minHeight: kMinInteractiveDimension,
+          constraints: decoration.prefixIconConstraints ?? themeData.visualDensity.effectiveConstraints(
+            const BoxConstraints(
+              minWidth: kMinInteractiveDimension,
+              minHeight: kMinInteractiveDimension,
+            ),
           ),
           child: IconTheme.merge(
             data: IconThemeData(
@@ -2219,9 +2266,11 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
         widthFactor: 1.0,
         heightFactor: 1.0,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minWidth: kMinInteractiveDimension,
-            minHeight: kMinInteractiveDimension,
+          constraints: decoration.suffixIconConstraints ?? themeData.visualDensity.effectiveConstraints(
+            const BoxConstraints(
+              minWidth: kMinInteractiveDimension,
+              minHeight: kMinInteractiveDimension,
+            ),
           ),
           child: IconTheme.merge(
             data: IconThemeData(
@@ -2299,11 +2348,12 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
         floatingLabelProgress: _floatingLabelController.value,
         border: border,
         borderGap: _borderGap,
+        alignLabelWithHint: decoration.alignLabelWithHint,
+        isDense: decoration.isDense,
+        visualDensity: themeData.visualDensity,
         icon: icon,
         input: widget.child,
         label: label,
-        alignLabelWithHint: decoration.alignLabelWithHint,
-        isDense: decoration.isDense,
         hint: hint,
         prefix: prefix,
         suffix: suffix,
@@ -2312,6 +2362,7 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
         helperError: helperError,
         counter: counter,
         container: container,
+        fixTextFieldOutlineLabel: themeData.fixTextFieldOutlineLabel,
       ),
       textDirection: textDirection,
       textBaseline: textBaseline,
@@ -2329,7 +2380,7 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
 /// to describe their decoration. (In fact, this class is merely the
 /// configuration of an [InputDecorator], which does all the heavy lifting.)
 ///
-/// {@tool sample --template=stateless_widget_scaffold}
+/// {@tool dartpad --template=stateless_widget_scaffold}
 ///
 /// This sample shows how to style a `TextField` using an `InputDecorator`. The
 /// TextField displays a "send message" icon to the left of the input area,
@@ -2354,7 +2405,7 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
 /// ```
 /// {@end-tool}
 ///
-/// {@tool sample --template=stateless_widget_scaffold}
+/// {@tool dartpad --template=stateless_widget_scaffold}
 ///
 /// This sample shows how to style a "collapsed" `TextField` using an
 /// `InputDecorator`. The collapsed `TextField` surrounds the hint text and
@@ -2374,7 +2425,7 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
 /// ```
 /// {@end-tool}
 ///
-/// {@tool sample --template=stateless_widget_scaffold}
+/// {@tool dartpad --template=stateless_widget_scaffold}
 ///
 /// This sample shows how to create a `TextField` with hint text, a red border
 /// on all sides, and an error message. To display a red border and error
@@ -2395,7 +2446,7 @@ class _InputDecoratorState extends State<InputDecorator> with TickerProviderStat
 /// ```
 /// {@end-tool}
 ///
-/// {@tool sample --template=stateless_widget_scaffold}
+/// {@tool dartpad --template=stateless_widget_scaffold}
 ///
 /// This sample shows how to style a `TextField` with a round border and
 /// additional text before and after the input area. It displays "Prefix" before
@@ -2460,9 +2511,11 @@ class InputDecoration {
     )
     this.hasFloatingPlaceholder = true, // ignore: deprecated_member_use_from_same_package
     this.floatingLabelBehavior = FloatingLabelBehavior.auto,
+    this.isCollapsed = false,
     this.isDense,
     this.contentPadding,
     this.prefixIcon,
+    this.prefixIconConstraints,
     this.prefix,
     this.prefixText,
     this.prefixStyle,
@@ -2470,6 +2523,7 @@ class InputDecoration {
     this.suffix,
     this.suffixText,
     this.suffixStyle,
+    this.suffixIconConstraints,
     this.counter,
     this.counterText,
     this.counterStyle,
@@ -2488,8 +2542,7 @@ class InputDecoration {
     this.alignLabelWithHint,
   }) : assert(enabled != null),
        assert(!(prefix != null && prefixText != null), 'Declaring both prefix and prefixText is not supported.'),
-       assert(!(suffix != null && suffixText != null), 'Declaring both suffix and suffixText is not supported.'),
-       isCollapsed = false;
+       assert(!(suffix != null && suffixText != null), 'Declaring both suffix and suffixText is not supported.');
 
   /// Defines an [InputDecorator] that is the same size as the input field.
   ///
@@ -2533,10 +2586,12 @@ class InputDecoration {
        prefix = null,
        prefixText = null,
        prefixStyle = null,
+       prefixIconConstraints = null,
        suffix = null,
        suffixIcon = null,
        suffixText = null,
        suffixStyle = null,
+       suffixIconConstraints = null,
        counter = null,
        counterText = null,
        counterStyle = null,
@@ -2709,8 +2764,20 @@ class InputDecoration {
   /// [errorText], and [counterText].
   ///
   /// By default the `contentPadding` reflects [isDense] and the type of the
-  /// [border]. If [isCollapsed] is true then `contentPadding` is
-  /// [EdgeInsets.zero].
+  /// [border].
+  ///
+  /// If [isCollapsed] is true then `contentPadding` is [EdgeInsets.zero].
+  ///
+  /// If `isOutline` property of [border] is false and if [filled] is true then
+  /// `contentPadding` is `EdgeInsets.fromLTRB(12, 8, 12, 8)` when [isDense]
+  /// is true and `EdgeInsets.fromLTRB(12, 12, 12, 12)` when [isDense] is false`.
+  /// If `isOutline` property of [border] is false and if [filled] is false then
+  /// `contentPadding` is `EdgeInsets.fromLTRB(0, 8, 0, 8)` when [isDense] is
+  /// true and `EdgeInsets.fromLTRB(0, 12, 0, 12)` when [isDense] is false`.
+  ///
+  /// If `isOutline` property of [border] is true then `contentPaddding` is
+  /// `EdgeInsets.fromLTRB(12, 20, 12, 12)` when [isDense] is true
+  /// and `EdgeInsets.fromLTRB(12, 24, 12, 16)` when [isDense] is false.
   final EdgeInsetsGeometry contentPadding;
 
   /// Whether the decoration is the same size as the input field.
@@ -2753,6 +2820,58 @@ class InputDecoration {
   ///    before the text field (but after the icon).
   ///  * [suffixIcon], which is the same but on the trailing edge.
   final Widget prefixIcon;
+
+  /// The constraints for the prefix icon.
+  ///
+  /// This can be used to modify the [BoxConstraints] surrounding [prefixIcon].
+  ///
+  /// This property is particularly useful for getting the decoration's height
+  /// less than 48px. This can be achieved by setting [isDense] to true and
+  /// setting the constraints' minimum height and width to a value lower than
+  /// 48px.
+  ///
+  /// {@tool dartpad --template=stateless_widget_scaffold}
+  /// This example shows the differences between two `TextField` widgets when
+  /// [prefixIconConstraints] is set to the default value and when one is not.
+  ///
+  /// Note that [isDense] must be set to true to be able to
+  /// set the constraints smaller than 48px.
+  ///
+  /// If null, [BoxConstraints] with a minimum width and height of 48px is
+  /// used.
+  ///
+  /// ```dart
+  /// Widget build(BuildContext context) {
+  ///   return Padding(
+  ///     padding: const EdgeInsets.symmetric(horizontal: 8.0),
+  ///     child: Column(
+  ///       mainAxisAlignment: MainAxisAlignment.center,
+  ///       children: <Widget>[
+  ///         TextField(
+  ///           decoration: InputDecoration(
+  ///             hintText: 'Normal Icon Constraints',
+  ///             prefixIcon: Icon(Icons.search),
+  ///           ),
+  ///         ),
+  ///         SizedBox(height: 10),
+  ///         TextField(
+  ///           decoration: InputDecoration(
+  ///             isDense: true,
+  ///             hintText:'Smaller Icon Constraints',
+  ///             prefixIcon: Icon(Icons.search),
+  ///             prefixIconConstraints: BoxConstraints(
+  ///               minHeight: 32,
+  ///               minWidth: 32,
+  ///             ),
+  ///           ),
+  ///         ),
+  ///       ],
+  ///     ),
+  ///   );
+  /// }
+  /// ```
+  /// {@end-tool}
+  final BoxConstraints prefixIconConstraints;
 
   /// Optional widget to place on the line before the input.
   ///
@@ -2866,6 +2985,61 @@ class InputDecoration {
   ///
   ///  * [prefixStyle], the equivalent but on the leading edge.
   final TextStyle suffixStyle;
+
+  /// The constraints for the suffix icon.
+  ///
+  /// This can be used to modify the [BoxConstraints] surrounding [suffixIcon].
+  ///
+  /// This property is particularly useful for getting the decoration's height
+  /// less than 48px. This can be achieved by setting [isDense] to true and
+  /// setting the constraints' minimum height and width to a value lower than
+  /// 48px.
+  ///
+  /// If null, a [BoxConstraints] with a minimum width and height of 48px is
+  /// used.
+  ///
+  /// {@tool dartpad --template=stateless_widget_scaffold}
+  /// This example shows the differences between two `TextField` widgets when
+  /// [suffixIconConstraints] is set to the default value and when one is not.
+  ///
+  /// Note that [isDense] must be set to true to be able to
+  /// set the constraints smaller than 48px.
+  ///
+  /// If null, [BoxConstraints] with a minimum width and height of 48px is
+  /// used.
+  ///
+  /// ```dart
+  /// Widget build(BuildContext context) {
+  ///   return Padding(
+  ///     padding: const EdgeInsets.symmetric(horizontal: 8.0),
+  ///     child: Column(
+  ///       mainAxisAlignment: MainAxisAlignment.center,
+  ///       children: <Widget>[
+  ///         TextField(
+  ///           decoration: InputDecoration(
+  ///             hintText: 'Normal Icon Constraints',
+  ///             suffixIcon: Icon(Icons.search),
+  ///           ),
+  ///         ),
+  ///         SizedBox(height: 10),
+  ///         TextField(
+  ///           decoration: InputDecoration(
+  ///             isDense: true,
+  ///             hintText:'Smaller Icon Constraints',
+  ///             suffixIcon: Icon(Icons.search),
+  ///             suffixIconConstraints: BoxConstraints(
+  ///               minHeight: 32,
+  ///               minWidth: 32,
+  ///             ),
+  ///           ),
+  ///         ),
+  ///       ],
+  ///     ),
+  ///   );
+  /// }
+  /// ```
+  /// {@end-tool}
+  final BoxConstraints suffixIconConstraints;
 
   /// Optional text to place below the line as a character count.
   ///
@@ -3129,8 +3303,6 @@ class InputDecoration {
 
   /// Creates a copy of this input decoration with the given fields replaced
   /// by the new values.
-  ///
-  /// Always sets [isCollapsed] to false.
   InputDecoration copyWith({
     Widget icon,
     String labelText,
@@ -3146,16 +3318,19 @@ class InputDecoration {
     int errorMaxLines,
     bool hasFloatingPlaceholder,
     FloatingLabelBehavior floatingLabelBehavior,
+    bool isCollapsed,
     bool isDense,
     EdgeInsetsGeometry contentPadding,
     Widget prefixIcon,
     Widget prefix,
     String prefixText,
+    BoxConstraints prefixIconConstraints,
     TextStyle prefixStyle,
     Widget suffixIcon,
     Widget suffix,
     String suffixText,
     TextStyle suffixStyle,
+    BoxConstraints suffixIconConstraints,
     Widget counter,
     String counterText,
     TextStyle counterStyle,
@@ -3189,16 +3364,19 @@ class InputDecoration {
       // ignore: deprecated_member_use_from_same_package
       hasFloatingPlaceholder: hasFloatingPlaceholder ?? this.hasFloatingPlaceholder,
       floatingLabelBehavior: floatingLabelBehavior ?? this.floatingLabelBehavior,
+      isCollapsed: isCollapsed ?? this.isCollapsed,
       isDense: isDense ?? this.isDense,
       contentPadding: contentPadding ?? this.contentPadding,
       prefixIcon: prefixIcon ?? this.prefixIcon,
       prefix: prefix ?? this.prefix,
       prefixText: prefixText ?? this.prefixText,
       prefixStyle: prefixStyle ?? this.prefixStyle,
+      prefixIconConstraints: prefixIconConstraints ?? this.prefixIconConstraints,
       suffixIcon: suffixIcon ?? this.suffixIcon,
       suffix: suffix ?? this.suffix,
       suffixText: suffixText ?? this.suffixText,
       suffixStyle: suffixStyle ?? this.suffixStyle,
+      suffixIconConstraints: suffixIconConstraints ?? this.suffixIconConstraints,
       counter: counter ?? this.counter,
       counterText: counterText ?? this.counterText,
       counterStyle: counterStyle ?? this.counterStyle,
@@ -3234,6 +3412,7 @@ class InputDecoration {
       // ignore: deprecated_member_use_from_same_package
       hasFloatingPlaceholder: hasFloatingPlaceholder ?? theme.hasFloatingPlaceholder,
       floatingLabelBehavior: floatingLabelBehavior ?? theme.floatingLabelBehavior,
+      isCollapsed: isCollapsed ?? theme.isCollapsed,
       isDense: isDense ?? theme.isDense,
       contentPadding: contentPadding ?? theme.contentPadding,
       prefixStyle: prefixStyle ?? theme.prefixStyle,
@@ -3282,10 +3461,12 @@ class InputDecoration {
         && other.prefix == prefix
         && other.prefixText == prefixText
         && other.prefixStyle == prefixStyle
+        && other.prefixIconConstraints == prefixIconConstraints
         && other.suffixIcon == suffixIcon
         && other.suffix == suffix
         && other.suffixText == suffixText
         && other.suffixStyle == suffixStyle
+        && other.suffixIconConstraints == suffixIconConstraints
         && other.counter == counter
         && other.counterText == counterText
         && other.counterStyle == counterStyle
@@ -3334,10 +3515,12 @@ class InputDecoration {
       prefix,
       prefixText,
       prefixStyle,
+      prefixIconConstraints,
       suffixIcon,
       suffix,
       suffixText,
       suffixStyle,
+      suffixIconConstraints,
       counter,
       counterText,
       counterStyle,
@@ -3376,10 +3559,12 @@ class InputDecoration {
       if (prefix != null) 'prefix: $prefix',
       if (prefixText != null) 'prefixText: $prefixText',
       if (prefixStyle != null) 'prefixStyle: $prefixStyle',
+      if (prefixIconConstraints != null) 'prefixIconConstraints: $prefixIconConstraints',
       if (suffixIcon != null) 'suffixIcon: $suffixIcon',
       if (suffix != null) 'suffix: $suffix',
       if (suffixText != null) 'suffixText: $suffixText',
       if (suffixStyle != null) 'suffixStyle: $suffixStyle',
+      if (suffixIconConstraints != null) 'suffixIconConstraints: $suffixIconConstraints',
       if (counter != null) 'counter: $counter',
       if (counterText != null) 'counterText: $counterText',
       if (counterStyle != null) 'counterStyle: $counterStyle',
@@ -3411,7 +3596,7 @@ class InputDecoration {
 /// The [InputDecoration.applyDefaults] method is used to combine a input
 /// decoration theme with an [InputDecoration] object.
 @immutable
-class InputDecorationTheme extends Diagnosticable {
+class InputDecorationTheme with Diagnosticable {
   /// Creates a value for [ThemeData.inputDecorationTheme] that
   /// defines default values for [InputDecorator].
   ///

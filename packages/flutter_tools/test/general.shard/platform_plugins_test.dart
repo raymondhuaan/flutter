@@ -23,7 +23,7 @@ void main() {
       when(mockFileSystem.path).thenReturn(pathContext);
     });
 
-    testUsingContext('throws tool exit if the plugin main class can\'t be read', () {
+    testUsingContext("throws tool exit if the plugin main class can't be read", () {
       when(pathContext.join('.pub_cache/plugin_a', 'android', 'src', 'main'))
         .thenReturn('.pub_cache/plugin_a/android/src/main');
 
@@ -35,7 +35,7 @@ void main() {
 
       final MockFile pluginJavaMainClass = MockFile();
       when(pluginJavaMainClass.existsSync()).thenReturn(true);
-      when(pluginJavaMainClass.readAsStringSync()).thenThrow(const FileSystemException());
+      when(pluginJavaMainClass.readAsStringSync(encoding: anyNamed('encoding'))).thenThrow(const FileSystemException());
       when(mockFileSystem.file('.pub_cache/plugin_a/android/src/main/java/com/company/PluginA.java'))
         .thenReturn(pluginJavaMainClass);
 
@@ -52,7 +52,7 @@ void main() {
           pluginPath: '.pub_cache/plugin_a',
         ).toMap();
       }, throwsToolExit(
-        message: 'Couldn\'t read file null even though it exists. '
+        message: "Couldn't read file null even though it exists. "
                  'Please verify that this file has read permission and try again.'
       ));
     }, overrides: <Type, Generator>{

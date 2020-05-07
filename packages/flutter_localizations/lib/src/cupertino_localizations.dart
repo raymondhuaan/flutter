@@ -210,7 +210,7 @@ abstract class GlobalCupertinoLocalizations implements CupertinoLocalizations {
         assert(
           false,
           'Failed to load DatePickerDateOrder $datePickerDateOrderString for '
-          'locale $_localeName.\nNon conforming string for $_localeName\'s '
+          "locale $_localeName.\nNon conforming string for $_localeName's "
           '.arb file',
         );
         return null;
@@ -244,11 +244,26 @@ abstract class GlobalCupertinoLocalizations implements CupertinoLocalizations {
         assert(
           false,
           'Failed to load DatePickerDateTimeOrder $datePickerDateTimeOrderString '
-          'for locale $_localeName.\nNon conforming string for $_localeName\'s '
+          "for locale $_localeName.\nNon conforming string for $_localeName's "
           '.arb file',
         );
         return null;
     }
+  }
+
+  /// The raw version of [tabSemanticsLabel], with `$tabIndex` and `$tabCount` verbatim
+  /// in the string.
+  @protected
+  String get tabSemanticsLabelRaw;
+
+  @override
+  String tabSemanticsLabel({ int tabIndex, int tabCount }) {
+    assert(tabIndex >= 1);
+    assert(tabCount >= 1);
+    final String template = tabSemanticsLabelRaw;
+    return template
+      .replaceFirst(r'$tabIndex', _decimalFormat.format(tabIndex))
+      .replaceFirst(r'$tabCount', _decimalFormat.format(tabCount));
   }
 
   @override

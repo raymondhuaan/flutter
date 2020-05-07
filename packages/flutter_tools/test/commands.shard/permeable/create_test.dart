@@ -7,22 +7,21 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:args/command_runner.dart';
-import 'package:platform/platform.dart';
-
 import 'package:flutter_tools/src/base/file_system.dart';
 import 'package:flutter_tools/src/base/io.dart';
 import 'package:flutter_tools/src/base/net.dart';
+import 'package:flutter_tools/src/base/platform.dart';
 import 'package:flutter_tools/src/cache.dart';
 import 'package:flutter_tools/src/commands/create.dart';
 import 'package:flutter_tools/src/dart/pub.dart';
 import 'package:flutter_tools/src/dart/sdk.dart';
 import 'package:flutter_tools/src/features.dart';
+import 'package:flutter_tools/src/globals.dart' as globals;
 import 'package:flutter_tools/src/project.dart';
 import 'package:flutter_tools/src/version.dart';
-import 'package:flutter_tools/src/globals.dart' as globals;
-
 import 'package:mockito/mockito.dart';
 import 'package:process/process.dart';
+import 'package:pubspec_parse/pubspec_parse.dart';
 
 import '../../src/common.dart';
 import '../../src/context.dart';
@@ -30,11 +29,13 @@ import '../../src/testbed.dart';
 
 const String frameworkRevision = '12345678';
 const String frameworkChannel = 'omega';
+// TODO(fujino): replace FakePlatform.fromPlatform() with FakePlatform()
 final Generator _kNoColorTerminalPlatform = () => FakePlatform.fromPlatform(const LocalPlatform())..stdoutSupportsAnsi = false;
 final Map<Type, Generator> noColorTerminalOverride = <Type, Generator>{
   Platform: _kNoColorTerminalPlatform,
 };
-const String samplesIndexJson = '''[
+const String samplesIndexJson = '''
+[
   { "id": "sample1" },
   { "id": "sample2" }
 ]''';
@@ -83,7 +84,14 @@ void main() {
     );
     return _runFlutterTest(projectDir);
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('can create a default project if empty directory exists', () async {
@@ -101,7 +109,14 @@ void main() {
       ],
     );
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('creates a module project correctly', () async {
@@ -123,7 +138,14 @@ void main() {
     ]);
     return _runFlutterTest(projectDir);
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('cannot create a project if non-empty non-project directory exists with .metadata', () async {
@@ -141,7 +163,14 @@ void main() {
         ]),
       throwsToolExit(message: 'Sorry, unable to detect the type of project to recreate'));
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
     ...noColorTerminalOverride,
   });
 
@@ -167,7 +196,14 @@ void main() {
       ],
     );
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('detects and recreates an app project correctly', () async {
@@ -192,7 +228,14 @@ void main() {
       ],
     );
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('detects and recreates a plugin project correctly', () async {
@@ -217,7 +260,14 @@ void main() {
       ],
     );
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('detects and recreates a package project correctly', () async {
@@ -248,7 +298,14 @@ void main() {
       ],
     );
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('kotlin/swift legacy app project', () async {
@@ -270,7 +327,14 @@ void main() {
       ],
     );
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('can create a package project', () async {
@@ -300,7 +364,14 @@ void main() {
     );
     return _runFlutterTest(projectDir);
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('can create a plugin project', () async {
@@ -322,7 +393,40 @@ void main() {
     );
     return _runFlutterTest(projectDir.childDirectory('example'));
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
+  });
+
+  testUsingContext('plugin example app depends on plugin', () async {
+    await _createProject(
+      projectDir,
+      <String>['--template=plugin', '-i', 'objc', '-a', 'java'],
+      <String>[
+        'example/pubspec.yaml',
+      ],
+    );
+    final String rawPubspec = await projectDir.childDirectory('example').childFile('pubspec.yaml').readAsString();
+    final Pubspec pubspec = Pubspec.parse(rawPubspec);
+    final String pluginName = projectDir.basename;
+    expect(pubspec.dependencies, contains(pluginName));
+    expect(pubspec.dependencies[pluginName] is PathDependency, isTrue);
+    final PathDependency pathDependency = pubspec.dependencies[pluginName] as PathDependency;
+    expect(pathDependency.path, '../');
+  }, overrides: <Type, Generator>{
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('kotlin/swift plugin project', () async {
@@ -407,7 +511,14 @@ void main() {
       <String>['lib/main.dart'],
     );
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('module project with pub', () async {
@@ -442,7 +553,14 @@ void main() {
       '.android/Flutter/src/main/java/io/flutter/facade/Flutter.java',
     ]);
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
 
@@ -467,27 +585,6 @@ void main() {
     expect(actualContents.contains('useAndroidX'), true);
   });
 
-  testUsingContext('non androidx app project', () async {
-    Cache.flutterRoot = '../..';
-    when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
-    when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
-
-    final CreateCommand command = CreateCommand();
-    final CommandRunner<void> runner = createTestCommandRunner(command);
-
-    await runner.run(<String>['create', '--no-pub', '--no-androidx', projectDir.path]);
-
-    void expectExists(String relPath) {
-      expect(globals.fs.isFileSync('${projectDir.path}/$relPath'), true);
-    }
-
-    expectExists('android/gradle.properties');
-
-    final String actualContents = await globals.fs.file(projectDir.path + '/android/gradle.properties').readAsString();
-
-    expect(actualContents.contains('useAndroidX'), false);
-  });
-
   testUsingContext('androidx is used by default in a module project', () async {
     Cache.flutterRoot = '../..';
     when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
@@ -502,23 +599,6 @@ void main() {
     expect(
       project.usesAndroidX,
       true,
-    );
-  });
-
-  testUsingContext('non androidx module', () async {
-    Cache.flutterRoot = '../..';
-    when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
-    when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
-
-    final CreateCommand command = CreateCommand();
-    final CommandRunner<void> runner = createTestCommandRunner(command);
-
-    await runner.run(<String>['create', '--template=module', '--no-pub', '--no-androidx', projectDir.path]);
-
-    final FlutterProject project = FlutterProject.fromDirectory(projectDir);
-    expect(
-      project.usesAndroidX,
-      false,
     );
   });
 
@@ -543,28 +623,7 @@ void main() {
     expect(actualContents.contains('useAndroidX'), true);
   });
 
-  testUsingContext('non androidx plugin project', () async {
-    Cache.flutterRoot = '../..';
-    when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
-    when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
-
-    final CreateCommand command = CreateCommand();
-    final CommandRunner<void> runner = createTestCommandRunner(command);
-
-    await runner.run(<String>['create', '--no-pub', '--template=plugin', '--no-androidx', projectDir.path]);
-
-    void expectExists(String relPath) {
-      expect(globals.fs.isFileSync('${projectDir.path}/$relPath'), true);
-    }
-
-    expectExists('android/gradle.properties');
-
-    final String actualContents = await globals.fs.file(projectDir.path + '/android/gradle.properties').readAsString();
-
-    expect(actualContents.contains('useAndroidX'), false);
-  });
-
-  testUsingContext('app supports macOS if requested', () async {
+  testUsingContext('app supports Linux if requested', () async {
     Cache.flutterRoot = '../..';
     when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
     when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
@@ -574,9 +633,54 @@ void main() {
 
     await runner.run(<String>['create', '--no-pub', projectDir.path]);
 
-    expect(projectDir.childDirectory('macos').childDirectory('Runner.xcworkspace').existsSync(), true);
+    expect(projectDir.childDirectory('linux').childFile('Makefile').existsSync(), true);
   }, overrides: <Type, Generator>{
-    FeatureFlags: () => TestFeatureFlags(isMacOSEnabled: true),
+    FeatureFlags: () => TestFeatureFlags(isLinuxEnabled: true),
+  });
+
+  testUsingContext('app does not include Linux by default', () async {
+    Cache.flutterRoot = '../..';
+    when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
+    when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--no-pub', projectDir.path]);
+
+    expect(projectDir.childDirectory('linux').childFile('Makefile').existsSync(), false);
+  }, overrides: <Type, Generator>{
+    FeatureFlags: () => TestFeatureFlags(isLinuxEnabled: false),
+  });
+
+  testUsingContext('plugin supports Linux if requested', () async {
+    Cache.flutterRoot = '../..';
+    when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
+    when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--no-pub', '--template=plugin', projectDir.path]);
+
+    expect(projectDir.childDirectory('linux').childFile('Makefile').existsSync(), true);
+  }, overrides: <Type, Generator>{
+    FeatureFlags: () => TestFeatureFlags(isLinuxEnabled: true),
+  });
+
+  testUsingContext('plugin does not include Linux by default', () async {
+    Cache.flutterRoot = '../..';
+    when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
+    when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--no-pub', '--template=plugin', projectDir.path]);
+
+    expect(projectDir.childDirectory('linux').childFile('Makefile').existsSync(), false);
+  }, overrides: <Type, Generator>{
+    FeatureFlags: () => TestFeatureFlags(isLinuxEnabled: false),
   });
 
   testUsingContext('app does not include macOS by default', () async {
@@ -622,6 +726,81 @@ void main() {
     expect(projectDir.childDirectory('macos').childFile('flutter_project.podspec').existsSync(), false);
   }, overrides: <Type, Generator>{
     FeatureFlags: () => TestFeatureFlags(isMacOSEnabled: false),
+  });
+
+  testUsingContext('app supports Windows if requested', () async {
+    Cache.flutterRoot = '../..';
+    when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
+    when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--no-pub', projectDir.path]);
+
+    expect(projectDir.childDirectory('windows').childFile('Runner.sln').existsSync(), true);
+  }, overrides: <Type, Generator>{
+    FeatureFlags: () => TestFeatureFlags(isWindowsEnabled: true),
+  });
+
+  testUsingContext('app does not include Windows by default', () async {
+    Cache.flutterRoot = '../..';
+    when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
+    when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--no-pub', projectDir.path]);
+
+    expect(projectDir.childDirectory('windows').childFile('Runner.sln').existsSync(), false);
+  }, overrides: <Type, Generator>{
+    FeatureFlags: () => TestFeatureFlags(isWindowsEnabled: false),
+  });
+
+  testUsingContext('plugin supports Windows if requested', () async {
+    Cache.flutterRoot = '../..';
+    when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
+    when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--no-pub', '--template=plugin', projectDir.path]);
+
+    expect(projectDir.childDirectory('windows').childFile('plugin.vcxproj').existsSync(), true);
+  }, overrides: <Type, Generator>{
+    FeatureFlags: () => TestFeatureFlags(isWindowsEnabled: true),
+  });
+
+  testUsingContext('plugin does not include Windows by default', () async {
+    Cache.flutterRoot = '../..';
+    when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
+    when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--no-pub', '--template=plugin', projectDir.path]);
+
+    expect(projectDir.childDirectory('windows').childFile('plugin.vcxproj').existsSync(), false);
+  }, overrides: <Type, Generator>{
+    FeatureFlags: () => TestFeatureFlags(isWindowsEnabled: false),
+  });
+
+  testUsingContext('plugin uses new platform schema', () async {
+    Cache.flutterRoot = '../..';
+    when(mockFlutterVersion.frameworkRevision).thenReturn(frameworkRevision);
+    when(mockFlutterVersion.channel).thenReturn(frameworkChannel);
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--no-pub', '--template=plugin', projectDir.path]);
+
+    final String pubspecContents = await globals.fs.directory(projectDir.path).childFile('pubspec.yaml').readAsString();
+
+    expect(pubspecContents.contains('platforms:'), true);
   });
 
   testUsingContext('has correct content and formatting with module template', () async {
@@ -955,7 +1134,14 @@ void main() {
       ],
     );
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('can re-gen module .ios/ folder, reusing custom org', () async {
@@ -972,7 +1158,14 @@ void main() {
       'com.bar.foo.flutterProject',
     );
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext('can re-gen app android/ folder, reusing custom org', () async {
@@ -1127,7 +1320,14 @@ void main() {
       ],
     );
   }, overrides: <Type, Generator>{
-    Pub: () => const Pub(),
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
   });
 
   testUsingContext(
@@ -1144,7 +1344,14 @@ void main() {
     },
     overrides: <Type, Generator>{
       ProcessManager: () => loggingProcessManager,
-      Pub: () => const Pub(),
+      Pub: () => Pub(
+        fileSystem: globals.fs,
+        logger: globals.logger,
+        processManager: globals.processManager,
+        usage: globals.flutterUsage,
+        botDetector: globals.botDetector,
+        platform: globals.platform,
+      ),
     },
   );
 
@@ -1162,7 +1369,14 @@ void main() {
     },
     overrides: <Type, Generator>{
       ProcessManager: () => loggingProcessManager,
-      Pub: () => const Pub(),
+      Pub: () => Pub(
+        fileSystem: globals.fs,
+        logger: globals.logger,
+        processManager: globals.processManager,
+        usage: globals.flutterUsage,
+        botDetector: globals.botDetector,
+        platform: globals.platform,
+      ),
     },
   );
 
@@ -1202,6 +1416,28 @@ void main() {
     HttpClientFactory: () =>
         () => MockHttpClient(200, result: samplesIndexJson),
   });
+
+  testUsingContext('Throws tool exit on empty samples index', () async {
+    final String outputFile = globals.fs.path.join(tempDir.path, 'flutter_samples.json');
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+    final List<String> args = <String>[
+      'create',
+      '--list-samples',
+      outputFile,
+    ];
+
+    await expectLater(
+      runner.run(args),
+      throwsToolExit(
+        exitCode: 2,
+        message: 'Unable to download samples',
+    ));
+  }, overrides: <Type, Generator>{
+    HttpClientFactory: () =>
+        () => MockHttpClient(200, result: ''),
+  });
+
   testUsingContext('provides an error to the user if samples json download fails', () async {
     final String outputFile = globals.fs.path.join(tempDir.path, 'flutter_samples.json');
     final CreateCommand command = CreateCommand();

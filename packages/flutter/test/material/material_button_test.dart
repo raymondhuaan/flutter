@@ -213,7 +213,7 @@ void main() {
     await gesture2.up();
   });
 
-  testWidgets('MaterialButton\'s disabledColor takes precedence over its default disabled color.', (WidgetTester tester) async {
+  testWidgets("MaterialButton's disabledColor takes precedence over its default disabled color.", (WidgetTester tester) async {
     // Regression test for https://github.com/flutter/flutter/issues/30012.
 
     final Finder rawButtonMaterial = find.descendant(
@@ -260,8 +260,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 800)); // Wait for splash and highlight to be well under way.
     await expectLater(tester, meetsGuideline(textContrastGuideline));
   },
+    skip: isBrowser, // https://github.com/flutter/flutter/issues/44115
     semanticsEnabled: true,
-    skip: isBrowser,
   );
 
   testWidgets('MaterialButton gets focus when autofocus is set.', (WidgetTester tester) async {
@@ -596,7 +596,7 @@ void main() {
 
 
     semantics.dispose();
-  }, skip: isBrowser);
+  });
 
   testWidgets('MaterialButton minWidth and height parameters', (WidgetTester tester) async {
     Widget buildFrame({ double minWidth, double height, EdgeInsets padding = EdgeInsets.zero, Widget child }) {

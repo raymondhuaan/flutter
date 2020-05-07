@@ -31,7 +31,7 @@ import 'theme_data.dart';
 /// Raised buttons have a minimum size of 88.0 by 36.0 which can be overridden
 /// with [ButtonTheme].
 ///
-/// {@tool sample --template=stateless_widget_scaffold}
+/// {@tool dartpad --template=stateless_widget_scaffold}
 ///
 /// This sample shows how to render a disabled RaisedButton, an enabled RaisedButton
 /// and lastly a RaisedButton with gradient background.
@@ -202,6 +202,7 @@ class RaisedButton extends MaterialButton {
     Clip clipBehavior,
     FocusNode focusNode,
     bool autofocus,
+    EdgeInsetsGeometry padding,
     MaterialTapTargetSize materialTapTargetSize,
     Duration animationDuration,
     @required Widget icon,
@@ -278,6 +279,7 @@ class _RaisedButtonWithIcon extends RaisedButton with MaterialButtonWithIconMixi
     Clip clipBehavior = Clip.none,
     FocusNode focusNode,
     bool autofocus = false,
+    EdgeInsetsGeometry padding,
     MaterialTapTargetSize materialTapTargetSize,
     Duration animationDuration,
     @required Widget icon,
@@ -311,6 +313,7 @@ class _RaisedButtonWithIcon extends RaisedButton with MaterialButtonWithIconMixi
          clipBehavior: clipBehavior,
          focusNode: focusNode,
          autofocus: autofocus,
+         padding: padding,
          materialTapTargetSize: materialTapTargetSize,
          animationDuration: animationDuration,
          child: Row(

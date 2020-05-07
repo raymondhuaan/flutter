@@ -172,7 +172,7 @@ class CustomSemanticsAction {
 ///
 /// Typically obtained from [SemanticsNode.getSemanticsData].
 @immutable
-class SemanticsData extends Diagnosticable {
+class SemanticsData with Diagnosticable {
   /// Creates a semantics data object.
   ///
   /// The [flags], [actions], [label], and [Rect] arguments must not be null.
@@ -1361,7 +1361,7 @@ class SemanticsNode extends AbstractNode with DiagnosticableTreeMixin {
         final List<DiagnosticsNode> mutationErrors = <DiagnosticsNode>[];
         if (newChildren.length != _debugPreviousSnapshot.length) {
           mutationErrors.add(ErrorDescription(
-            'The list\'s length has changed from ${_debugPreviousSnapshot.length} '
+            "The list's length has changed from ${_debugPreviousSnapshot.length} "
             'to ${newChildren.length}.'
           ));
         } else {
@@ -3997,7 +3997,7 @@ String _concatStrings({
 /// See also:
 ///
 ///  * [OrdinalSortKey] for a sort key that sorts using an ordinal.
-abstract class SemanticsSortKey extends Diagnosticable implements Comparable<SemanticsSortKey> {
+abstract class SemanticsSortKey with Diagnosticable implements Comparable<SemanticsSortKey> {
   /// Abstract const constructor. This constructor enables subclasses to provide
   /// const constructors so that they can be used in const expressions.
   const SemanticsSortKey({this.name});

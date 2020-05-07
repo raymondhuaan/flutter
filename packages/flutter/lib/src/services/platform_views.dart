@@ -65,7 +65,7 @@ class PlatformViewsService {
         }
         break;
       default:
-        throw UnimplementedError('${call.method} was invoked but isn\'t implemented by PlatformViewsService');
+        throw UnimplementedError("${call.method} was invoked but isn't implemented by PlatformViewsService");
     }
     return null;
   }
@@ -133,7 +133,7 @@ class PlatformViewsService {
   /// Platform view factories are typically registered by plugin code.
   ///
   /// The `id, `viewType, and `layoutDirection` parameters must not be null.
-  /// If `creationParams` is non null then `cretaionParamsCodec` must not be null.
+  /// If `creationParams` is non null then `creationParamsCodec` must not be null.
   static Future<UiKitViewController> initUiKitView({
     @required int id,
     @required String viewType,

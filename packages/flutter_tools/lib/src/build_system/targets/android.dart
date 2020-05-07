@@ -6,6 +6,7 @@ import '../../artifacts.dart';
 import '../../base/build.dart';
 import '../../base/file_system.dart';
 import '../../build_info.dart';
+import '../../devfs.dart';
 import '../../globals.dart' as globals;
 import '../build_system.dart';
 import '../depfile.dart';
@@ -62,8 +63,35 @@ abstract class AndroidAssetBundle extends Target {
           .copySync(outputDirectory.childFile('isolate_snapshot_data').path);
     }
     if (_copyAssets) {
-      final Depfile assetDepfile = await copyAssets(environment, outputDirectory);
-      assetDepfile.writeToFile(environment.buildDir.childFile('flutter_assets.d'));
+      final String shaderBundlePath = environment.inputs[kBundleSkSLPath];
+      final DevFSContent skslBundle = processSkSLBundle(
+        shaderBundlePath,
+        engineVersion: environment.engineVersion,
+        fileSystem: environment.fileSystem,
+        logger: environment.logger,
+        targetPlatform: TargetPlatform.android,
+      );
+      final Depfile assetDepfile = await copyAssets(
+        environment,
+        outputDirectory,
+        additionalContent: <String, DevFSContent>{
+          if (skslBundle != null)
+            kSkSLShaderBundlePath: skslBundle,
+        }
+      );
+      if (shaderBundlePath != null) {
+        final File skSLBundleFile = environment.fileSystem
+          .file(shaderBundlePath).absolute;
+        assetDepfile.inputs.add(skSLBundleFile);
+      }
+      final DepfileService depfileService = DepfileService(
+        fileSystem: globals.fs,
+        logger: globals.logger,
+      );
+      depfileService.writeToFile(
+        assetDepfile,
+        environment.buildDir.childFile('flutter_assets.d'),
+      );
     }
   }
 
@@ -91,9 +119,9 @@ class DebugAndroidApplication extends AndroidAssetBundle {
   @override
   List<Source> get outputs => <Source>[
     ...super.outputs,
-    const Source.pattern('{OUTPUT_DIR}/vm_snapshot_data'),
-    const Source.pattern('{OUTPUT_DIR}/isolate_snapshot_data'),
-    const Source.pattern('{OUTPUT_DIR}/kernel_blob.bin'),
+    const Source.pattern('{OUTPUT_DIR}/flutter_assets/vm_snapshot_data'),
+    const Source.pattern('{OUTPUT_DIR}/flutter_assets/isolate_snapshot_data'),
+    const Source.pattern('{OUTPUT_DIR}/flutter_assets/kernel_blob.bin'),
   ];
 }
 
@@ -202,7 +230,14 @@ class AndroidAot extends AotElfBase {
 
   @override
   Future<void> build(Environment environment) async {
-    final AOTSnapshotter snapshotter = AOTSnapshotter(reportTimings: false);
+    final AOTSnapshotter snapshotter = AOTSnapshotter(
+      reportTimings: false,
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      xcode: globals.xcode,
+      processManager: globals.processManager,
+      artifacts: globals.artifacts,
+    );
     final Directory output = environment.buildDir.childDirectory(_androidAbiName);
     final String splitDebugInfo = environment.defines[kSplitDebugInfo];
     if (environment.defines[kBuildMode] == null) {
@@ -214,6 +249,7 @@ class AndroidAot extends AotElfBase {
     final List<String> extraGenSnapshotOptions = environment.defines[kExtraGenSnapshotOptions]?.split(',')
       ?? const <String>[];
     final BuildMode buildMode = getBuildModeForName(environment.defines[kBuildMode]);
+    final bool dartObfuscation = environment.defines[kDartObfuscation] == 'true';
     final int snapshotExitCode = await snapshotter.build(
       platform: targetPlatform,
       buildMode: buildMode,
@@ -223,6 +259,7 @@ class AndroidAot extends AotElfBase {
       bitcode: false,
       extraGenSnapshotOptions: extraGenSnapshotOptions,
       splitDebugInfo: splitDebugInfo,
+      dartObfuscation: dartObfuscation,
     );
     if (snapshotExitCode != 0) {
       throw Exception('AOT snapshotter exited with code $snapshotExitCode');

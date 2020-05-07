@@ -3,6 +3,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# Exit on error
+set -e
+
 RunCommand() {
   if [[ -n "$VERBOSE_SCRIPT_LOGGING" ]]; then
     echo "♦ $*"
@@ -51,16 +54,14 @@ BuildApp() {
     derived_dir="${project_path}/.ios/Flutter"
   fi
 
-  RunCommand mkdir -p -- "$derived_dir"
-  AssertExists "$derived_dir"
-  RunCommand rm -rf -- "${derived_dir}/App.framework"
-
   # Default value of assets_path is flutter_assets
   local assets_path="flutter_assets"
-  # The value of assets_path can set by add FLTAssetsPath to AppFrameworkInfo.plist
-  FLTAssetsPath=$(/usr/libexec/PlistBuddy -c "Print :FLTAssetsPath" "${derived_dir}/AppFrameworkInfo.plist" 2>/dev/null)
-  if [[ -n "$FLTAssetsPath" ]]; then
-    assets_path="${FLTAssetsPath}"
+  # The value of assets_path can set by add FLTAssetsPath to
+  # AppFrameworkInfo.plist.
+  if FLTAssetsPath=$(/usr/libexec/PlistBuddy -c "Print :FLTAssetsPath" "${derived_dir}/AppFrameworkInfo.plist" 2>/dev/null); then
+    if [[ -n "$FLTAssetsPath" ]]; then
+      assets_path="${FLTAssetsPath}"
+    fi
   fi
 
   # Use FLUTTER_BUILD_MODE if it's set, otherwise use the Xcode build configuration name
@@ -151,9 +152,9 @@ BuildApp() {
     verbose_flag="--verbose"
   fi
 
-  local track_widget_creation_flag=""
-  if [[ -n "$TRACK_WIDGET_CREATION" ]]; then
-    track_widget_creation_flag="true"
+  local performance_measurement_option=""
+  if [[ -n "$PERFORMANCE_MEASUREMENT_FILE" ]]; then
+    performance_measurement_option="--performance-measurement-file=${PERFORMANCE_MEASUREMENT_FILE}"
   fi
 
   RunCommand "${FLUTTER_ROOT}/bin/flutter"                                \
@@ -162,12 +163,19 @@ BuildApp() {
     ${local_engine_flag}                                                  \
     assemble                                                              \
     --output="${derived_dir}/"                                            \
+    ${performance_measurement_option}                                     \
     -dTargetPlatform=ios                                                  \
     -dTargetFile="${target_path}"                                         \
     -dBuildMode=${build_mode}                                             \
     -dIosArchs="${ARCHS}"                                                 \
-    -dTrackWidgetCreation="${track_widget_creation_flag}"                 \
+    -dSplitDebugInfo="${SPLIT_DEBUG_INFO}"                                \
+    -dTreeShakeIcons="${TREE_SHAKE_ICONS}"                                \
+    -dTrackWidgetCreation="${TRACK_WIDGET_CREATION}"                      \
+    -dDartObfuscation="${DART_OBFUSCATION}"                               \
     -dEnableBitcode="${bitcode_flag}"                                     \
+    --ExtraGenSnapshotOptions="${EXTRA_GEN_SNAPSHOT_OPTIONS}"             \
+    --DartDefines="${DART_DEFINES}"                                       \
+    -dExtraFrontEndOptions="${EXTRA_FRONT_END_OPTIONS}"                   \
     "${build_mode}_ios_bundle_flutter_assets"
 
   if [[ $? -ne 0 ]]; then
@@ -212,8 +220,7 @@ LipoExecutable() {
         exit 1
       fi
     else
-      lipo -output "${output}" -extract "${arch}" "${executable}"
-      if [[ $? == 0 ]]; then
+      if lipo -output "${output}" -extract "${arch}" "${executable}"; then
         all_executables+=("${output}")
       else
         echo "Failed to extract ${arch} for ${executable}. Running lipo -info:"
@@ -240,7 +247,6 @@ ThinFramework() {
   local framework_dir="$1"
   shift
 
-  local plist_path="${framework_dir}/Info.plist"
   local executable="$(GetFrameworkExecutablePath "${framework_dir}")"
   LipoExecutable "${executable}" "$@"
 }
@@ -273,32 +279,37 @@ EmbedFlutterFrameworks() {
 
   # Embed App.framework from Flutter into the app (after creating the Frameworks directory
   # if it doesn't already exist).
-  local xcode_frameworks_dir=${BUILT_PRODUCTS_DIR}"/"${PRODUCT_NAME}".app/Frameworks"
+  local xcode_frameworks_dir="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
   RunCommand mkdir -p -- "${xcode_frameworks_dir}"
-  RunCommand cp -Rv -- "${flutter_ios_out_folder}/App.framework" "${xcode_frameworks_dir}"
+  RunCommand rsync -av --delete "${flutter_ios_out_folder}/App.framework" "${xcode_frameworks_dir}"
 
   # Embed the actual Flutter.framework that the Flutter app expects to run against,
   # which could be a local build or an arch/type specific build.
-  # Remove it first since Xcode might be trying to hold some of these files - this way we're
-  # sure to get a clean copy.
-  RunCommand rm -rf -- "${xcode_frameworks_dir}/Flutter.framework"
-  RunCommand cp -Rv -- "${flutter_ios_engine_folder}/Flutter.framework" "${xcode_frameworks_dir}/"
+
+  # Copy Xcode behavior and don't copy over headers or modules.
+  RunCommand rsync -av --delete --filter "- .DS_Store/" --filter "- Headers/" --filter "- Modules/" "${flutter_ios_engine_folder}/Flutter.framework" "${xcode_frameworks_dir}/"
+  if [[ "$ACTION" != "install" ]]; then
+    # Strip bitcode from the destination unless archiving.
+    RunCommand "${DT_TOOLCHAIN_DIR}"/usr/bin/bitcode_strip "${flutter_ios_engine_folder}/Flutter.framework/Flutter" -r -o "${xcode_frameworks_dir}/Flutter.framework/Flutter"
+  fi
 
   # Sign the binaries we moved.
-  local identity="${EXPANDED_CODE_SIGN_IDENTITY_NAME:-$CODE_SIGN_IDENTITY}"
-  if [[ -n "$identity" && "$identity" != "\"\"" ]]; then
-    RunCommand codesign --force --verbose --sign "${identity}" -- "${xcode_frameworks_dir}/App.framework/App"
-    RunCommand codesign --force --verbose --sign "${identity}" -- "${xcode_frameworks_dir}/Flutter.framework/Flutter"
+  if [[ -n "${EXPANDED_CODE_SIGN_IDENTITY:-}" ]]; then
+    RunCommand codesign --force --verbose --sign "${EXPANDED_CODE_SIGN_IDENTITY}" -- "${xcode_frameworks_dir}/App.framework/App"
+    RunCommand codesign --force --verbose --sign "${EXPANDED_CODE_SIGN_IDENTITY}" -- "${xcode_frameworks_dir}/Flutter.framework/Flutter"
   fi
 }
 
+EmbedAndThinFrameworks() {
+  EmbedFlutterFrameworks
+  ThinAppFrameworks
+}
+
 # Main entry point.
-
-# TODO(cbracken): improve error handling, then enable set -e
-
 if [[ $# == 0 ]]; then
-  # Backwards-compatibility: if no args are provided, build.
+  # Backwards-compatibility: if no args are provided, build and embed.
   BuildApp
+  EmbedFlutterFrameworks
 else
   case $1 in
     "build")
@@ -307,5 +318,7 @@ else
       ThinAppFrameworks ;;
     "embed")
       EmbedFlutterFrameworks ;;
+    "embed_and_thin")
+      EmbedAndThinFrameworks ;;
   esac
 fi

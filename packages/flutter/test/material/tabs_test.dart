@@ -249,7 +249,7 @@ void main() {
     );
     expect(tester.renderObject<RenderParagraph>(find.byType(RichText)).text.style.fontFamily, 'Ahem');
     expect(tester.getSize(find.byType(Tab)), const Size(14.0, 46.0));
-  }, skip: isBrowser);
+  });
 
   testWidgets('Tab sizing - icon and text', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -257,7 +257,7 @@ void main() {
     );
     expect(tester.renderObject<RenderParagraph>(find.byType(RichText)).text.style.fontFamily, 'Ahem');
     expect(tester.getSize(find.byType(Tab)), const Size(14.0, 72.0));
-  }, skip: isBrowser);
+  });
 
   testWidgets('Tab sizing - icon, iconMargin and text', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -281,7 +281,7 @@ void main() {
     );
     expect(tester.renderObject<RenderParagraph>(find.byType(RichText)).text.style.fontFamily, 'Ahem');
     expect(tester.getSize(find.byType(Tab)), const Size(210.0, 72.0));
-  }, skip: isBrowser);
+  });
 
   testWidgets('Tab sizing - icon and child', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -289,7 +289,7 @@ void main() {
     );
     expect(tester.renderObject<RenderParagraph>(find.byType(RichText)).text.style.fontFamily, 'Ahem');
     expect(tester.getSize(find.byType(Tab)), const Size(14.0, 72.0));
-  }, skip: isBrowser);
+  });
 
   testWidgets('Tab color - normal', (WidgetTester tester) async {
     final Widget tabBar = TabBar(tabs: const <Widget>[SizedBox.shrink()], controller: TabController(length: 1, vsync: tester));
@@ -412,7 +412,7 @@ void main() {
 
     // Scrolling the TabBar doesn't change the selection
     expect(controller.index, 0);
-  }, skip: isBrowser);
+  });
 
   testWidgets('TabBarView maintains state', (WidgetTester tester) async {
     final List<String> tabs = <String>['AAAAAA', 'BBBBBB', 'CCCCCC', 'DDDDDD', 'EEEEEE'];
@@ -1671,7 +1671,7 @@ void main() {
     expect(semantics, hasSemantics(expectedSemantics));
 
     semantics.dispose();
-  }, skip: isBrowser);
+  });
 
   testWidgets('correct scrolling semantics', (WidgetTester tester) async {
     final SemanticsTester semantics = SemanticsTester(tester);
@@ -1939,7 +1939,7 @@ void main() {
     expect(semantics, hasSemantics(expectedSemantics));
 
     semantics.dispose();
-  }, skip: isBrowser);
+  });
 
   testWidgets('can be notified of TabBar onTap behavior', (WidgetTester tester) async {
     int tabIndex = -1;
@@ -2409,7 +2409,7 @@ void main() {
                 ),
                 body: tabTextContent.isNotEmpty
                   ? TabBarView(
-                      children: tabTextContent.map((String textContent) => Tab(text: '$textContent\'s view')).toList()
+                      children: tabTextContent.map((String textContent) => Tab(text: "$textContent's view")).toList()
                     )
                   : const Center(child: Text('No tabs')),
                 bottomNavigationBar: BottomAppBar(
@@ -2452,11 +2452,27 @@ void main() {
     await tester.tap(find.byKey(const Key('Add tab')));
     await tester.pumpAndSettle();
     expect(find.text('Tab 1'), findsOneWidget);
-    expect(find.text('Tab 1\'s view'), findsOneWidget);
+    expect(find.text("Tab 1's view"), findsOneWidget);
 
     // Dynamically updates to zero tabs properly
     await tester.tap(find.byKey(const Key('Delete tab')));
     await tester.pumpAndSettle();
     expect(find.text('No tabs'), findsOneWidget);
   });
+
+   testWidgets('TabBar expands vertically to accommodate the Icon and child Text() pair the same amount it would expand for Icon and text pair.', (WidgetTester tester) async {
+    const double indicatorWeight = 2.0;
+
+    const List<Widget> tabListWithText = <Widget>[
+      Tab(icon: Icon(Icons.notifications), text: 'Test'),
+    ];
+    const List<Widget> tabListWithTextChild = <Widget>[
+      Tab(icon: Icon(Icons.notifications), child: Text('Test')),
+    ];
+
+    const TabBar tabBarWithText = TabBar(tabs: tabListWithText, indicatorWeight: indicatorWeight,);
+    const TabBar tabBarWithTextChild = TabBar(tabs: tabListWithTextChild, indicatorWeight: indicatorWeight,);
+
+    expect(tabBarWithText.preferredSize, tabBarWithTextChild.preferredSize);
+   });
 }

@@ -23,10 +23,11 @@ import '../test/runner.dart';
 import '../test/test_wrapper.dart';
 import '../test/watcher.dart';
 
-class TestCommand extends FastFlutterCommand {
+class TestCommand extends FlutterCommand {
   TestCommand({
     bool verboseHelp = false,
     this.testWrapper = const TestWrapper(),
+    this.testRunner = const FlutterTestRunner(),
   }) : assert(testWrapper != null) {
     requiresPubspecYaml();
     usesPubOption();
@@ -40,6 +41,14 @@ class TestCommand extends FastFlutterCommand {
         help: 'A plain-text substring of the names of tests to run.',
         valueHelp: 'substring',
         splitCommas: false,
+      )
+      ..addOption('tags',
+        abbr: 't',
+        help: 'Run only tests associated with tags',
+      )
+      ..addOption('exclude-tags',
+        abbr: 'x',
+        help: 'Run only tests WITHOUT given tags',
       )
       ..addFlag('start-paused',
         defaultsTo: false,
@@ -105,17 +114,29 @@ class TestCommand extends FastFlutterCommand {
         help: 'The platform to run the unit tests on. Defaults to "tester".',
       )
       ..addOption('test-randomize-ordering-seed',
-        defaultsTo: '0',
-        help: 'If positive, use this as a seed to randomize the execution of '
-              'test cases (must be a 32bit unsigned integer).\n'
+        help: 'The seed to randomize the execution order of test cases.\n'
+              'Must be a 32bit unsigned integer or "random".\n'
               'If "random", pick a random seed to use.\n'
-              'If 0 or not set, do not randomize test case execution order.',
+              'If not passed, do not randomize test case execution order.',
+      )
+      ..addFlag('enable-vmservice',
+        defaultsTo: false,
+        hide: !verboseHelp,
+        help: 'Enables the vmservice without --start-paused. This flag is '
+              'intended for use with tests that will use dart:developer to '
+              'interact with the vmservice at runtime.\n'
+              'This flag is ignored if --start-paused or coverage are requested. '
+              'The vmservice will be enabled no matter what in those cases.'
       );
     usesTrackWidgetCreation(verboseHelp: verboseHelp);
+    addEnableExperimentation(hide: !verboseHelp);
   }
 
   /// The interface for starting and configuring the tester.
   final TestWrapper testWrapper;
+
+  /// Interface for running the tester process.
+  final FlutterTestRunner testRunner;
 
   @override
   Future<Set<DevelopmentArtifact>> get requiredArtifacts async {
@@ -139,7 +160,7 @@ class TestCommand extends FastFlutterCommand {
       throwToolExit(
         'Error: No pubspec.yaml file found in the current working directory.\n'
         'Run this command from the root of your project. Test files must be '
-        'called *_test.dart and must reside in the package\'s \'test\' '
+        "called *_test.dart and must reside in the package's 'test' "
         'directory (or one of its subdirectories).');
     }
     if (shouldRunPub) {
@@ -148,7 +169,10 @@ class TestCommand extends FastFlutterCommand {
     final bool buildTestAssets = boolArg('test-assets');
     final List<String> names = stringsArg('name');
     final List<String> plainNames = stringsArg('plain-name');
+    final String tags = stringArg('tags');
+    final String excludeTags = stringArg('exclude-tags');
     final FlutterProject flutterProject = FlutterProject.current();
+    final List<String> dartExperiments = stringsArg(FlutterOptions.kEnableExperiment);
 
     if (buildTestAssets && flutterProject.manifest.assets.isNotEmpty) {
       await _buildTestAsset();
@@ -196,24 +220,21 @@ class TestCommand extends FastFlutterCommand {
       ];
     }
 
+    final bool machine = boolArg('machine');
     CoverageCollector collector;
     if (boolArg('coverage') || boolArg('merge-coverage')) {
       final String projectName = FlutterProject.current().manifest.appName;
       collector = CoverageCollector(
+        verbose: !machine,
         libraryPredicate: (String libraryName) => libraryName.contains(projectName),
       );
     }
 
-    final bool machine = boolArg('machine');
-    if (collector != null && machine) {
-      throwToolExit("The test command doesn't support --machine and coverage together");
-    }
-
     TestWatcher watcher;
-    if (collector != null) {
+    if (machine) {
+      watcher = EventPrinter(parent: collector);
+    } else if (collector != null) {
       watcher = collector;
-    } else if (machine) {
-      watcher = EventPrinter();
     }
 
     Cache.releaseLockEarly();
@@ -235,14 +256,16 @@ class TestCommand extends FastFlutterCommand {
     final bool disableServiceAuthCodes =
       boolArg('disable-service-auth-codes');
 
-    final int result = await runTests(
+    final int result = await testRunner.runTests(
       testWrapper,
       files,
       workDir: workDir,
       names: names,
       plainNames: plainNames,
+      tags: tags,
+      excludeTags: excludeTags,
       watcher: watcher,
-      enableObservatory: collector != null || startPaused,
+      enableObservatory: collector != null || startPaused || boolArg('enable-vmservice'),
       startPaused: startPaused,
       disableServiceAuthCodes: disableServiceAuthCodes,
       ipv6: boolArg('ipv6'),
@@ -255,6 +278,7 @@ class TestCommand extends FastFlutterCommand {
       flutterProject: flutterProject,
       web: stringArg('platform') == 'chrome',
       randomSeed: stringArg('test-randomize-ordering-seed'),
+      dartExperiments: dartExperiments,
     );
 
     if (collector != null) {

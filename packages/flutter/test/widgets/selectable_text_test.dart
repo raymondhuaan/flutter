@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart' show DragStartBehavior, PointerDeviceKind;
+import 'package:flutter/gestures.dart';
 
 import '../widgets/semantics_tester.dart';
 
@@ -132,7 +132,7 @@ void main() {
       'Third line of stuff';
   const String kMoreThanFourLines =
       kThreeLines +
-          '\nFourth line won\'t display and ends at';
+          "\nFourth line won't display and ends at";
 
   // Returns the first RenderEditable.
   RenderEditable findRenderEditable(WidgetTester tester) {
@@ -177,12 +177,17 @@ void main() {
     debugResetSemanticsIdCounter();
   });
 
-  Widget selectableTextBuilder({String text = '', int maxLines = 1}) {
+  Widget selectableTextBuilder({
+    String text = '',
+    int maxLines = 1,
+    int minLines,
+  }) {
     return boilerplate(
       child: SelectableText(
         text,
         style: const TextStyle(color: Colors.black, fontSize: 34.0),
         maxLines: maxLines,
+        minLines: minLines,
       ),
     );
   }
@@ -525,7 +530,7 @@ void main() {
     expect(editableText.controller.selection.baseOffset, 9);
   });
 
-  testWidgets('Slight movements in longpress don\'t hide/show handles', (WidgetTester tester) async {
+  testWidgets("Slight movements in longpress don't hide/show handles", (WidgetTester tester) async {
     await tester.pumpWidget(
         overlay(
           child: const SelectableText('abc def ghi'),
@@ -990,7 +995,6 @@ void main() {
           dragStartBehavior: DragStartBehavior.down,
           style: TextStyle(color: Colors.black, fontSize: 34.0),
           maxLines: 3,
-          strutStyle: StrutStyle.disabled,
         ),
       ),
     );
@@ -1155,6 +1159,41 @@ void main() {
     expect(inputBox.hitTest(BoxHitTestResult(), position: inputBox.globalToLocal(newFourthPos)), isFalse);
   });
 
+  testWidgets('minLines cannot be greater than maxLines', (WidgetTester tester) async {
+    try {
+      await tester.pumpWidget(
+        overlay(
+          child: Container(
+            width: 300.0,
+            child: SelectableText(
+              'abcd',
+              minLines: 4,
+              maxLines: 3,
+            ),
+          ),
+        ),
+      );
+    } on AssertionError catch (e) {
+      expect(e.toString(), contains("minLines can't be greater than maxLines"));
+      return;
+    }
+    fail('An assert should be triggered when minLines is greater than maxLines');
+  });
+
+  testWidgets('Selectable height with minLine', (WidgetTester tester) async {
+    await tester.pumpWidget(selectableTextBuilder());
+
+    RenderBox findTextBox() => tester.renderObject(find.byType(SelectableText));
+
+    final RenderBox textBox = findTextBox();
+    final Size emptyInputSize = textBox.size;
+
+    // Even if the text is a one liner, minimum height of SelectableText will determined by minLines
+    await tester.pumpWidget(selectableTextBuilder(text: 'No wrapping here.', minLines: 2, maxLines: 3));
+    expect(findTextBox(), equals(textBox));
+    expect(textBox.size.height, emptyInputSize.height * 2);
+  });
+
   testWidgets('Can align to center', (WidgetTester tester) async {
     await tester.pumpWidget(
       overlay(
@@ -1276,7 +1315,6 @@ void main() {
               child: SelectableText(
                 text,
                 maxLines: 3,
-                strutStyle: StrutStyle.disabled,
               ),
             ),
           ),
@@ -3189,6 +3227,7 @@ void main() {
       textScaleFactor: 1.0,
       autofocus: true,
       showCursor: true,
+      minLines: 2,
       maxLines: 10,
       cursorWidth: 1.0,
       cursorRadius: Radius.zero,
@@ -3206,6 +3245,7 @@ void main() {
       'style: TextStyle(inherit: true, color: Color(0xff00ff00))',
       'autofocus: true',
       'showCursor: true',
+      'minLines: 2',
       'maxLines: 10',
       'textAlign: end',
       'textDirection: ltr',
@@ -3533,13 +3573,13 @@ void main() {
     renderEditable.selectWord(cause: SelectionChangedCause.longPress);
     await tester.pumpAndSettle();
 
-    final List<Widget> transitions =
-    find.byType(FadeTransition).evaluate().map((Element e) => e.widget).toList();
-    // On Android, an empty app contains a single FadeTransition. The following
-    // two are the left and right text selection handles, respectively.
-    expect(transitions.length, 3);
-    final FadeTransition left = transitions[1] as FadeTransition;
-    final FadeTransition right = transitions[2] as FadeTransition;
+    final List<FadeTransition> transitions = find.descendant(
+      of: find.byWidgetPredicate((Widget w) => '${w.runtimeType}' == '_TextSelectionHandleOverlay'),
+      matching: find.byType(FadeTransition),
+    ).evaluate().map((Element e) => e.widget).cast<FadeTransition>().toList();
+    expect(transitions.length, 2);
+    final FadeTransition left = transitions[0];
+    final FadeTransition right = transitions[1];
 
     expect(left.opacity.value, equals(1.0));
     expect(right.opacity.value, equals(1.0));
@@ -3703,4 +3743,105 @@ void main() {
       expect(editableText.selectionOverlay.handlesAreVisible, isFalse);
     },
   );
+
+  testWidgets('text span with tap gesture recognizer works in selectable rich text', (WidgetTester tester) async {
+    int spyTaps = 0;
+    final TapGestureRecognizer spyRecognizer = TapGestureRecognizer()
+      ..onTap = () {
+        spyTaps += 1;
+      };
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(
+          child: Center(
+            child: SelectableText.rich(
+              TextSpan(
+                children: <TextSpan>[
+                  const TextSpan(text: 'Atwater '),
+                  TextSpan(text: 'Peel', recognizer: spyRecognizer),
+                  const TextSpan(text: ' Sherbrooke Bonaventure'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(spyTaps, 0);
+    final Offset selectableTextStart = tester.getTopLeft(find.byType(SelectableText));
+
+    await tester.tapAt(selectableTextStart + const Offset(150.0, 5.0));
+    expect(spyTaps, 1);
+
+    // Waits for a while to avoid double taps.
+    await tester.pump(const Duration(seconds: 1));
+
+    // Starts a long press.
+    final TestGesture gesture =
+      await tester.startGesture(selectableTextStart + const Offset(150.0, 5.0));
+    await tester.pump(const Duration(milliseconds: 500));
+    await gesture.up();
+    await tester.pump();
+    final EditableText editableTextWidget = tester.widget(find.byType(EditableText).first);
+
+    final TextEditingController controller = editableTextWidget.controller;
+    // Long press still triggers selection.
+    expect(
+      controller.selection,
+      const TextSelection(baseOffset: 8, extentOffset: 12),
+    );
+    // Long press does not trigger gesture recognizer.
+    expect(spyTaps, 1);
+  });
+
+  testWidgets('text span with long press gesture recognizer works in selectable rich text', (WidgetTester tester) async {
+    int spyLongPress = 0;
+    final LongPressGestureRecognizer spyRecognizer = LongPressGestureRecognizer()
+      ..onLongPress = () {
+        spyLongPress += 1;
+      };
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(
+          child: Center(
+            child: SelectableText.rich(
+              TextSpan(
+                children: <TextSpan>[
+                  const TextSpan(text: 'Atwater '),
+                  TextSpan(text: 'Peel', recognizer: spyRecognizer),
+                  const TextSpan(text: ' Sherbrooke Bonaventure'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(spyLongPress, 0);
+    final Offset selectableTextStart = tester.getTopLeft(find.byType(SelectableText));
+
+    await tester.tapAt(selectableTextStart + const Offset(150.0, 5.0));
+    expect(spyLongPress, 0);
+
+    // Waits for a while to avoid double taps.
+    await tester.pump(const Duration(seconds: 1));
+
+    // Starts a long press.
+    final TestGesture gesture =
+    await tester.startGesture(selectableTextStart + const Offset(150.0, 5.0));
+    await tester.pump(const Duration(milliseconds: 500));
+    await gesture.up();
+    await tester.pump();
+    final EditableText editableTextWidget = tester.widget(find.byType(EditableText).first);
+
+    final TextEditingController controller = editableTextWidget.controller;
+    // Long press does not trigger selection if there is text span with long
+    // press recognizer.
+    expect(
+      controller.selection,
+      const TextSelection(baseOffset: 11, extentOffset: 11, affinity: TextAffinity.upstream),
+    );
+    // Long press triggers gesture recognizer.
+    expect(spyLongPress, 1);
+  });
 }
